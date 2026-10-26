@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MetaHunter | EXIF Анализатор</title>
     
-    <!-- ExifReader и Leaflet (Карты) -->
     <script src="https://cdn.jsdelivr.net/npm/exifreader@4.14.0/dist/exif-reader.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,6 +18,7 @@
             --accent: #00e676;
             --red: #ff3b30;
             --border: #2a2f3a;
+            --info: #22D3EE;
         }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body {
@@ -37,11 +37,17 @@
         .header h1 { margin: 0 0 5px 0; font-size: 28px; letter-spacing: 1px; }
         .header p { margin: 0; color: var(--text-muted); font-size: 14px; }
 
+        /* Иконки */
+        svg { display: inline-block; vertical-align: middle; }
+        .icon-accent { fill: var(--accent); }
+        .icon-muted { fill: var(--text-muted); }
+
         /* Кнопки управления */
         .action-btn {
-            display: block; width: 100%; padding: 12px; margin-bottom: 15px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 14px; margin-bottom: 15px;
             background: transparent; color: var(--accent); border: 1px dashed var(--accent);
-            border-radius: 8px; text-align: center; font-weight: bold; font-size: 14px;
+            border-radius: 8px; font-weight: bold; font-size: 14px;
             cursor: pointer; transition: all 0.3s;
         }
         .action-btn:hover { background: rgba(0, 230, 118, 0.1); }
@@ -52,18 +58,16 @@
         }
         .reset-btn:hover { background: #2a2f3a; color: var(--text); }
 
-        /* Зона загрузки */
         .upload-area {
-            border: 2px dashed var(--border); border-radius: 12px; padding: 30px 20px;
+            border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px;
             text-align: center; cursor: pointer; transition: all 0.3s;
             background: var(--card-bg); margin-bottom: 20px; display: block;
         }
         .upload-area:hover { border-color: var(--accent); background: rgba(0, 230, 118, 0.05); }
-        .upload-area svg { width: 40px; height: 40px; fill: var(--text-muted); margin-bottom: 10px; }
-        .upload-area p { margin: 0; color: var(--text-muted); font-size: 14px; }
+        .upload-area svg { width: 48px; height: 48px; fill: var(--text-muted); margin-bottom: 12px; }
+        .upload-area p { margin: 0; color: var(--text-muted); font-size: 15px; font-weight: 500;}
         input[type="file"] { display: none; }
 
-        /* Превью */
         .image-preview {
             width: 100%; max-height: 250px; object-fit: contain; border-radius: 12px;
             margin-bottom: 20px; display: none; filter: brightness(0.8);
@@ -76,71 +80,72 @@
             border: 1px solid var(--border); display: none; z-index: 1; background: #000;
         }
         
-        /* Фильтр для тайлов карты (делаем их темными), но маркеры остаются цветными */
         .dark-map .leaflet-tile-pane {
             filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%);
         }
 
-        /* Кастомный пульсирующий маркер */
-        .pulse-marker {
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42"><path d="M15 0C6.71573 0 0 6.71573 0 15C0 26.25 15 42 15 42C15 42 30 26.25 30 15C30 6.71573 23.2843 0 15 0Z" fill="%23ff3b30"/><circle cx="15" cy="15" r="6" fill="%23fff"/></svg>');
-            background-size: contain; background-repeat: no-repeat;
-            width: 30px; height: 42px; margin-left: -15px; margin-top: -42px;
-            animation: pulse-drop 1.5s infinite alternate;
-        }
-        @keyframes pulse-drop {
-            0% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 59, 48, 0.6)); }
-            100% { transform: scale(1.1); filter: drop-shadow(0 0 15px rgba(255, 59, 48, 1)); }
-        }
-
-        /* Блок с данными */
+        /* Блок данных */
         .data-container {
             display: none; background: var(--card-bg); border: 1px solid var(--border);
             border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: fadeIn 0.5s ease;
         }
         .data-row {
-            display: flex; justify-content: space-between; padding: 10px 0;
+            display: flex; justify-content: space-between; align-items: center; padding: 12px 0;
             border-bottom: 1px solid var(--border); font-size: 14px;
         }
         .data-row:last-child { border-bottom: none; }
-        .data-label { color: var(--text-muted); }
-        .data-value { color: var(--accent); font-weight: bold; text-align: right; max-width: 60%; word-break: break-all;}
+        .data-label { color: var(--text-muted); font-weight: 500; }
+        .data-value { color: var(--accent); font-weight: bold; text-align: right; max-width: 65%; word-break: break-all; font-family: monospace; font-size: 15px;}
         
-        .copy-coords {
-            cursor: pointer; color: #ffcc00; text-decoration: underline; text-decoration-style: dotted;
-        }
+        .copy-coords { cursor: pointer; color: #ffcc00; text-decoration: underline; text-decoration-style: dotted; transition: color 0.2s;}
         .copy-coords:hover { color: #fff; }
 
         .gmaps-btn {
-            display: inline-block; margin-top: 10px; color: var(--info); font-size: 13px; text-decoration: none;
-            border: 1px solid var(--info); padding: 5px 10px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 15px; color: var(--info); font-size: 13px; text-decoration: none;
+            border: 1px solid var(--info); padding: 10px; border-radius: 8px;
+            font-weight: 600; transition: all 0.3s;
         }
         .gmaps-btn:hover { background: rgba(34, 211, 238, 0.1); }
 
-        /* Инструкции / Чеклист */
+        /* Инструкции */
         .instructions {
             display: none; background: var(--card-bg); border: 1px solid var(--border);
             border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: fadeIn 0.5s ease;
         }
-        .instructions h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text); }
-        .instructions p { font-size: 13px; color: var(--text-muted); margin: 0 0 15px 0; line-height: 1.5; }
-        .instructions ul { list-style: none; padding: 0; margin: 0 0 15px 0; }
-        .instructions li { font-size: 13px; color: var(--text-muted); padding: 5px 0 5px 20px; position: relative; }
-        .instructions li::before { content: '👉'; position: absolute; left: 0; font-size: 12px; }
         
-        .search-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .search-btn {
-            display: block; padding: 10px; background: transparent; color: var(--accent);
-            border: 1px solid var(--accent); border-radius: 8px; text-align: center;
-            text-decoration: none; font-weight: bold; font-size: 13px; transition: all 0.3s;
+        .instr-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .instr-header h3 { margin: 0; font-size: 16px; color: var(--text); }
+        
+        .instructions p { font-size: 13.5px; color: var(--text-muted); margin: 0 0 15px 0; line-height: 1.5; }
+        
+        .osint-hints { list-style: none; padding: 0; margin: 15px 0 0 0; }
+        .osint-hints li { 
+            display: flex; align-items: flex-start; gap: 10px; 
+            font-size: 13px; color: var(--text-muted); padding: 8px 0; 
+            border-bottom: 1px dashed var(--border); 
         }
-        .search-btn:hover { background: rgba(0, 230, 118, 0.1); }
+        .osint-hints li:last-child { border-bottom: none; }
+        .osint-hints svg { width: 14px; height: 14px; flex-shrink: 0; fill: var(--accent); margin-top: 2px;}
+
+        /* Ссылки на поиск */
+        .search-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;}
+        .search-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px; background: var(--bg); color: var(--text);
+            border: 1px solid var(--border); border-radius: 8px; text-align: center;
+            text-decoration: none; font-weight: 500; font-size: 13px; transition: all 0.3s;
+        }
+        .search-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0, 230, 118, 0.05); }
+        .search-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
         .error-msg {
-            display: none; color: var(--red); text-align: center;
-            background: rgba(255, 59, 48, 0.1); border: 1px solid rgba(255, 59, 48, 0.3);
-            padding: 15px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; line-height: 1.4;
+            display: none; color: var(--red); text-align: left;
+            background: rgba(255, 59, 48, 0.05); border: 1px solid rgba(255, 59, 48, 0.2);
+            padding: 15px; border-radius: 8px; font-size: 13.5px; margin-bottom: 20px; line-height: 1.5;
         }
+        .error-msg b { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 14px;}
+        .error-msg svg { fill: var(--red); width: 16px; height: 16px; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -155,11 +160,14 @@
             <p>Анализ скрытых метаданных фотографий</p>
         </div>
 
-        <button class="action-btn" id="demoBtn">[ Попробовать на примере ]</button>
+        <button class="action-btn" id="demoBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Попробовать на примере
+        </button>
 
         <label for="fileInput" class="upload-area" id="uploadArea">
             <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-            <p>Нажми, чтобы выбрать фото</p>
+            <p>Нажмите, чтобы выбрать фото</p>
         </label>
         <input type="file" id="fileInput" accept="image/*">
 
@@ -187,33 +195,49 @@
                     <span id="resCoords" class="copy-coords" onclick="copyCoordinates()">-</span>
                 </span>
             </div>
-            <div id="gmapsContainer" style="display:none; text-align:center;">
-                <a href="#" id="gmapsLink" class="gmaps-btn" target="_blank">Открыть в Google Maps</a>
+            <div id="gmapsContainer" style="display:none;">
+                <a href="#" id="gmapsLink" class="gmaps-btn" target="_blank">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    Открыть в Google Maps
+                </a>
             </div>
         </div>
 
-        <!-- Блок инструкций (показывается всегда) -->
         <div class="instructions" id="instructions">
-            <h3 id="instrTitle">OSINT-поиск</h3>
-            <p id="instrText">Если метаданных нет, попробуй найти первоисточник фото или изучить его визуально:</p>
+            <div class="instr-header">
+                <svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <h3 id="instrTitle">Анализ</h3>
+            </div>
+            <p id="instrText">Проверка завершена.</p>
             
             <div class="search-links">
-                <a href="https://yandex.ru/images/" class="search-btn" target="_blank">Яндекс</a>
-                <a href="https://lens.google.com/" class="search-btn" target="_blank">Google Lens</a>
-                <a href="https://tineye.com/" class="search-btn" target="_blank">TinEye</a>
-                <a href="https://www.bing.com/visualsearch" class="search-btn" target="_blank">Bing Visual</a>
+                <a href="https://yandex.ru/images/" class="search-btn" target="_blank">
+                    Яндекс <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
+                <a href="https://lens.google.com/" class="search-btn" target="_blank">
+                    Google Lens <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
+                <a href="https://tineye.com/" class="search-btn" target="_blank">
+                    TinEye <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
+                <a href="https://www.bing.com/visualsearch" class="search-btn" target="_blank">
+                    Bing Visual <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
             </div>
 
-            <ul style="margin-top: 15px;">
-                <li>Язык вывесок и надписей на фото</li>
-                <li>Формат и цвет номеров машин</li>
-                <li>Длина теней (время суток и стороны света)</li>
-                <li>Архитектура зданий и растительность</li>
-                <li>Отражения в стеклах или лужах</li>
+            <ul class="osint-hints" id="osintHints" style="display:none;">
+                <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Язык вывесок и надписей на фото</li>
+                <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Формат и цвет номеров машин</li>
+                <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Длина теней (время суток и стороны света)</li>
+                <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Архитектура зданий и растительность</li>
+                <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Отражения в стеклах или лужах</li>
             </ul>
         </div>
 
-        <button class="action-btn reset-btn" id="resetBtn">[ Загрузить другое фото ]</button>
+        <button class="action-btn reset-btn" id="resetBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            Загрузить другое фото
+        </button>
 
         <div class="footer">
             Данные не отправляются на сервер.<br>Анализ происходит локально в браузере.
@@ -231,6 +255,8 @@
         const resetBtn = document.getElementById('resetBtn');
         const mapContainer = document.getElementById('map');
         const gmapsContainer = document.getElementById('gmapsContainer');
+        const osintHints = document.getElementById('osintHints');
+        const instrIcon = document.getElementById('instrIcon');
 
         let map = null;
         let marker = null;
@@ -240,26 +266,30 @@
         function showMap(lat, lon) {
             mapContainer.style.display = 'block';
             
-            if (!map) {
-                map = L.map('map').setView([lat, lon], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
+            setTimeout(() => {
+                if (!map) {
+                    map = L.map('map').setView([lat, lon], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
+                } else {
+                    map.setView([lat, lon], 13);
+                }
+
+                if (marker) map.removeLayer(marker);
+                
+                marker = L.circleMarker([lat, lon], {
+                    radius: 10,
+                    fillColor: "#ff3b30",
+                    color: "#fff",
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8,
+                    className: 'pulse-marker-map'
                 }).addTo(map);
-            } else {
-                map.setView([lat, lon], 13);
-            }
 
-            if (marker) map.removeLayer(marker);
-            
-            // Кастомная пульсирующая капля
-            const pulseIcon = L.divIcon({
-                className: 'pulse-marker',
-                iconSize: [30, 42],
-                iconAnchor: [15, 42]
-            });
-
-            marker = L.marker([lat, lon], {icon: pulseIcon}).addTo(map);
-            setTimeout(() => { map.invalidateSize(); }, 100);
+                map.invalidateSize();
+            }, 150);
         }
 
         function copyCoordinates() {
@@ -284,6 +314,7 @@
             errorMsg.style.display = 'none';
             mapContainer.style.display = 'none';
             gmapsContainer.style.display = 'none';
+            errorMsg.style.display = 'none';
             
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -316,31 +347,38 @@
                         if (currentLat && currentLon) {
                             document.getElementById('resCoords').textContent = `${currentLat}, ${currentLon}`;
                             document.getElementById('resCoords').style.color = "#ffcc00";
-                            showMap(currentLat, currentLon);
                             
-                            // Добавляем ссылку на Google Maps
+                            showMap(currentLat, currentLon);
                             document.getElementById('gmapsLink').href = `https://www.google.com/maps?q=${currentLat},${currentLon}`;
                             gmapsContainer.style.display = 'block';
                             
-                            document.getElementById('instrTitle').textContent = "📍 Место найдено!";
-                            document.getElementById('instrText').textContent = "Координаты успешно извлечены. Нажми на них, чтобы скопировать, или открой в Google Maps.";
+                            // Меняем иконку на "Локация" (Map Pin)
+                            instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
+                            
+                            document.getElementById('instrTitle').textContent = "Место найдено";
+                            document.getElementById('instrText').textContent = "Координаты извлечены из метаданных. Ты можешь скопировать их или открыть в Google Maps.";
+                            osintHints.style.display = 'none';
+                            
                         } else {
                             document.getElementById('resCoords').textContent = "Нет данных";
                             document.getElementById('resCoords').style.color = "var(--text-muted)";
                             
-                            // Умный анализ отсутствия данных
                             if (make === "Неизвестно" && date === "Нет данных") {
-                                errorMsg.innerHTML = "<b>Метаданные не найдены.</b><br>Скорее всего, это скриншот или фото из соцсети (Telegram, VK, Instagram удаляют EXIF для защиты).";
+                                errorMsg.innerHTML = '<b><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Метаданные не найдены</b>Скорее всего, это скриншот или фото из соцсети (Telegram, VK, Instagram удаляют EXIF).';
                                 errorMsg.style.display = 'block';
                             }
                             
+                            // Меняем иконку на "Поиск" (Lens)
+                            instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+                            
                             document.getElementById('instrTitle').textContent = "Как найти место без метаданных?";
-                            document.getElementById('instrText').textContent = "Загрузи это фото в поисковики по картинкам (ниже), чтобы найти оригинал, или изучи детали:";
+                            document.getElementById('instrText').textContent = "Загрузи фото в поисковики ниже, чтобы найти оригинал, или обрати внимание на детали:";
+                            osintHints.style.display = 'block';
                         }
 
                         dataContainer.style.display = 'block';
                         instructions.style.display = 'block';
-                        resetBtn.style.display = 'block';
+                        resetBtn.style.display = 'flex';
 
                     }).catch(error => {
                         document.getElementById('resDevice').textContent = "Нет данных";
@@ -351,43 +389,43 @@
                         
                         dataContainer.style.display = 'block';
                         instructions.style.display = 'block';
-                        resetBtn.style.display = 'block';
+                        resetBtn.style.display = 'flex';
 
-                        errorMsg.innerHTML = "<b>Файл не содержит EXIF-данных.</b><br>Похоже, это скриншот или картинка, обработанная программой для удаления метаданных.";
+                        errorMsg.innerHTML = '<b><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Файл не содержит EXIF-данных</b>Это скриншот или очищенное фото.';
                         errorMsg.style.display = 'block';
                         
+                        instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+                        
                         document.getElementById('instrTitle').textContent = "Как найти место без метаданных?";
-                        document.getElementById('instrText').textContent = "Загрузи это фото в поисковики по картинкам (ниже), чтобы найти оригинал, или изучи детали:";
+                        document.getElementById('instrText').textContent = "Загрузи фото в поисковики ниже, чтобы найти оригинал, или обрати внимание на детали:";
+                        osintHints.style.display = 'block';
                     });
                 };
             };
             reader.readAsDataURL(file);
         }
 
-        // Загрузка своего фото
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) processFile(file);
         });
 
-        // Демо-фото
         demoBtn.addEventListener('click', async function() {
-            demoBtn.textContent = "[ Загрузка... ]";
+            demoBtn.textContent = "Загрузка...";
             try {
                 const response = await fetch('https://raw.githubusercontent.com/ianare/exif-samples/master/jpg/gps/DSCN0010.jpg');
                 const blob = await response.blob();
                 const file = new File([blob], "demo.jpg", { type: "image/jpeg" });
                 processFile(file);
-                demoBtn.textContent = "[ Попробовать на примере ]";
+                demoBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Попробовать на примере';
             } catch (error) {
                 alert("Не удалось загрузить демо-фото. Проверьте интернет.");
-                demoBtn.textContent = "[ Попробовать на примере ]";
+                demoBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Попробовать на примере';
             }
         });
 
-        // Сброс (Загрузить другое фото)
         resetBtn.addEventListener('click', function() {
-            fileInput.value = ''; // Очищаем инпут
+            fileInput.value = '';
             imagePreview.style.display = 'none';
             imagePreview.src = '';
             
@@ -398,8 +436,21 @@
             resetBtn.style.display = 'none';
             
             uploadArea.style.display = 'block';
-            demoBtn.style.display = 'block';
+            demoBtn.style.display = 'flex';
+            
+            // Возвращаем иконку лупы по умолчанию
+            instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
         });
     </script>
+    
+    <style>
+        .pulse-marker-map {
+            animation: pulse-map 1.5s infinite alternate;
+        }
+        @keyframes pulse-map {
+            0% { stroke-width: 2px; r: 10; }
+            100% { stroke-width: 4px; r: 12; }
+        }
+    </style>
 </body>
 </html>
