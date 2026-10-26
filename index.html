@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MetaHunter | EXIF Анализатор</title>
+    <title>Xpose | EXIF Анализатор</title>
     
     <script src="https://cdn.jsdelivr.net/npm/exifreader@4.14.0/dist/exif-reader.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -81,7 +81,7 @@
             filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%);
         }
 
-        /* Кастомная пульсирующая капля */
+        /* Кастомная пульсирующая капля (без белой точки) */
         .pulse-pin {
             width: 24px; height: 24px;
             background: var(--red);
@@ -91,14 +91,7 @@
             border: 2px solid #fff;
             animation: pulse-pin 1.5s infinite alternate;
         }
-        .pulse-pin::after {
-            content: '';
-            width: 8px; height: 8px;
-            background: #fff; border-radius: 50%;
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            margin-top: -5px; margin-left: -5px;
-        }
+        
         @keyframes pulse-pin {
             0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
             70% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
@@ -175,7 +168,7 @@
 
     <div class="container">
         <div class="header">
-            <h1>MetaHunter</h1>
+            <h1>Xpose</h1>
             <p>Анализ скрытых метаданных фотографий</p>
         </div>
 
@@ -245,7 +238,6 @@
                 </a>
             </div>
 
-            <!-- Подсказки -->
             <ul class="osint-hints" id="osintHints" style="display:none;">
                 <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Язык вывесок и надписей на фото</li>
                 <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Формат и цвет номеров машин</li>
@@ -333,7 +325,7 @@
             errorMsg.style.display = 'none';
             mapContainer.style.display = 'none';
             gmapsContainer.style.display = 'none';
-            osintHints.style.display = 'none'; // Всегда скрываем перед новым анализом
+            osintHints.style.display = 'none';
             
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -376,7 +368,6 @@
                             document.getElementById('instrTitle').textContent = "Место найдено";
                             document.getElementById('instrText').textContent = "Координаты извлечены из метаданных. Ты можешь скопировать их или открыть в Google Maps.";
                             
-                            // Скрываем подсказки, так как место уже найдено
                             osintHints.style.display = 'none';
                             
                         } else {
@@ -393,7 +384,6 @@
                             document.getElementById('instrTitle').textContent = "Как найти место без метаданных?";
                             document.getElementById('instrText').textContent = "Загрузи фото в поисковики ниже, чтобы найти оригинал, или обрати внимание на детали:";
                             
-                            // Показываем подсказки, так как GPS не найден
                             osintHints.style.display = 'block';
                         }
 
@@ -420,7 +410,6 @@
                         document.getElementById('instrTitle').textContent = "Как найти место без метаданных?";
                         document.getElementById('instrText').textContent = "Загрузи фото в поисковики ниже, чтобы найти оригинал, или обрати внимание на детали:";
                         
-                        // Показываем подсказки в случае ошибки
                         osintHints.style.display = 'block';
                     });
                 };
