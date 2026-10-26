@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MetaHunter | EXIF Анализатор</title>
     
-    <!-- Подключаем библиотеку для чтения EXIF -->
-    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <!-- Библиотеки: ExifReader для данных и Leaflet для карты -->
+    <script src="https://cdn.jsdelivr.net/npm/exifreader@4.14.0/dist/exif-reader.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         :root {
@@ -30,20 +32,39 @@
         }
         .container { width: 100%; max-width: 500px; margin-top: 20px; }
         
-        .header { text-align: center; margin-bottom: 30px; }
+        .header { text-align: center; margin-bottom: 20px; }
         .header h1 { margin: 0 0 5px 0; font-size: 28px; letter-spacing: 1px; }
         .header p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+        /* Кнопка Демо */
+        .demo-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px dashed var(--accent);
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .demo-btn:hover { background: rgba(0, 230, 118, 0.1); }
 
         /* Зона загрузки */
         .upload-area {
             border: 2px dashed var(--border);
             border-radius: 12px;
-            padding: 40px 20px;
+            padding: 30px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
             background: var(--card-bg);
             margin-bottom: 20px;
+            display: block;
         }
         .upload-area:hover { border-color: var(--accent); background: rgba(0, 230, 118, 0.05); }
         .upload-area svg { width: 40px; height: 40px; fill: var(--text-muted); margin-bottom: 10px; }
@@ -53,13 +74,27 @@
         /* Превью картинки */
         .image-preview {
             width: 100%;
-            max-height: 300px;
+            max-height: 250px;
             object-fit: contain;
             border-radius: 12px;
             margin-bottom: 20px;
             display: none;
             filter: brightness(0.8);
             border: 1px solid var(--border);
+            background: #000;
+        }
+
+        /* Карта */
+        #map {
+            height: 250px;
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            display: none;
+            /* Темный фильтр для карты, чтобы вписалась в дизайн */
+            filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%);
+            z-index: 1;
         }
 
         /* Блок с данными */
@@ -82,6 +117,51 @@
         .data-row:last-child { border-bottom: none; }
         .data-label { color: var(--text-muted); }
         .data-value { color: var(--accent); font-weight: bold; text-align: right; max-width: 60%; word-break: break-all;}
+
+        /* Блок поиска по картинке */
+        .search-links {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+        .search-links h3 { margin: 0 0 15px 0; font-size: 16px; color: var(--text); }
+        .search-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            text-align: center;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .search-btn:hover { background: rgba(0, 230, 118, 0.1); }
+        .search-btn:last-child { margin-bottom: 0; }
+
+        /* OSINT Чеклист */
+        .checklist {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+        .checklist h3 { margin: 0 0 15px 0; font-size: 16px; color: var(--text); }
+        .checklist ul { list-style: none; padding: 0; margin: 0; }
+        .checklist li { color: var(--text-muted); font-size: 14px; padding: 8px 0; border-bottom: 1px dashed var(--border); display: flex; align-items: center; gap: 10px; }
+        .checklist li:last-child { border-bottom: none; }
+        .checklist li::before { content: '□'; color: var(--accent); font-size: 18px; }
 
         .error-msg {
             display: none;
@@ -108,6 +188,9 @@
             <p>Анализ скрытых метаданных фотографий</p>
         </div>
 
+        <!-- Кнопка демо -->
+        <button class="demo-btn" id="demoBtn">[ Попробовать на примере ]</button>
+
         <!-- Зона загрузки -->
         <label for="fileInput" class="upload-area" id="uploadArea">
             <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
@@ -118,10 +201,13 @@
         <!-- Превью -->
         <img id="imagePreview" class="image-preview" alt="Preview">
 
+        <!-- Карта -->
+        <div id="map"></div>
+
         <!-- Сообщение об ошибке -->
         <div class="error-msg" id="errorMsg"></div>
 
-        <!-- Результаты -->
+        <!-- Результаты EXIF -->
         <div class="data-container" id="dataContainer">
             <div class="data-row">
                 <span class="data-label">Устройство</span>
@@ -145,6 +231,26 @@
             </div>
         </div>
 
+        <!-- Поиск по картинке -->
+        <div class="search-links" id="searchLinks">
+            <h3>Искать это фото в сети:</h3>
+            <a href="https://yandex.ru/images/" class="search-btn" target="_blank">Яндекс Картинки</a>
+            <a href="https://lens.google.com/" class="search-btn" target="_blank">Google Lens</a>
+            <a href="https://tineye.com/" class="search-btn" target="_blank">TinEye</a>
+        </div>
+
+        <!-- OSINT Чеклист -->
+        <div class="checklist" id="checklist">
+            <h3>OSINT-чеклист (если нет метаданных):</h3>
+            <ul>
+                <li>Обрати внимание на язык вывесок</li>
+                <li>Посмотри на номера машин и их формат</li>
+                <li>Оцени длину теней (время суток)</li>
+                <li>Проверь архитектуру зданий и растительность</li>
+                <li>Изучи отражения в стеклах и лужах</li>
+            </ul>
+        </div>
+
         <div class="footer">
             Данные не отправляются на сервер.<br>Анализ происходит локально в браузере.
         </div>
@@ -152,52 +258,85 @@
 
     <script>
         const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
         const imagePreview = document.getElementById('imagePreview');
         const dataContainer = document.getElementById('dataContainer');
+        const searchLinks = document.getElementById('searchLinks');
+        const checklist = document.getElementById('checklist');
         const errorMsg = document.getElementById('errorMsg');
+        const demoBtn = document.getElementById('demoBtn');
+        const mapContainer = document.getElementById('map');
 
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        let map = null;
+        let marker = null;
 
-            // Сброс предыдущих данных
+        // Функция показа карты
+        function showMap(lat, lon) {
+            mapContainer.style.display = 'block';
+            
+            if (!map) {
+                map = L.map('map').setView([lat, lon], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+            } else {
+                map.setView([lat, lon], 13);
+            }
+
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lon]).addTo(map);
+
+            // Принудительный пересчет размера карты после отображения
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+
+        // Основная функция обработки файла
+        function processFile(file) {
             dataContainer.style.display = 'none';
+            searchLinks.style.display = 'none';
+            checklist.style.display = 'none';
             errorMsg.style.display = 'none';
+            mapContainer.style.display = 'none';
 
             const reader = new FileReader();
             reader.onload = function(event) {
                 imagePreview.src = event.target.result;
                 imagePreview.style.display = 'block';
+                uploadArea.style.display = 'none';
+                demoBtn.style.display = 'none'; // Скрываем кнопку демо после загрузки
 
-                // Ждем загрузки картинки в DOM, чтобы прочитать EXIF
                 imagePreview.onload = function() {
-                    EXIF.getData(imagePreview, function() {
-                        // Получаем теги
-                        const make = EXIF.getTag(this, "Make") || "Неизвестно";
-                        const model = EXIF.getTag(this, "Model") || "";
-                        const date = EXIF.getTag(this, "DateTimeOriginal") || "Нет данных";
+                    ExifReader.load(file).then(tags => {
+                        let make = tags.Make ? tags.Make.description : "Неизвестно";
+                        let model = tags.Model ? tags.Model.description : "";
+                        let date = tags.DateTimeOriginal ? tags.DateTimeOriginal.description : "Нет данных";
                         
-                        // GPS
-                        const lat = EXIF.getTag(this, "GPSLatitude");
-                        const latRef = EXIF.getTag(this, "GPSLatitudeRef");
-                        const lon = EXIF.getTag(this, "GPSLongitude");
-                        const lonRef = EXIF.getTag(this, "GPSLongitudeRef");
+                        let lat = null;
+                        let lon = null;
 
-                        // Заполняем данные
-                        document.getElementById('resDevice').textContent = model ? `${make} ${model}` : make;
+                        if (tags.GPSLatitude && tags.GPSLongitude) {
+                            lat = tags.GPSLatitude.description;
+                            lon = tags.GPSLongitude.description;
+                        }
+
+                        let deviceName = model;
+                        if (model && !model.toLowerCase().includes(make.toLowerCase())) {
+                            deviceName = `${make} ${model}`;
+                        } else if (!model && make !== "Неизвестно") {
+                            deviceName = make;
+                        }
+                        if (deviceName === "") deviceName = "Неизвестно";
+
+                        document.getElementById('resDevice').textContent = deviceName;
                         document.getElementById('resDate').textContent = date;
                         document.getElementById('resRes').textContent = `${this.naturalWidth}x${this.naturalHeight}`;
 
-                        // Обработка GPS
                         if (lat && lon) {
-                            // Конвертация формата EXIF (градусы, минуты, секунды) в десятичные градусы
-                            const latDec = lat[0] + lat[1]/60 + lat[2]/3600;
-                            const lonDec = lon[0] + lon[1]/60 + lon[2]/3600;
-                            
-                            document.getElementById('resLat').textContent = `${latDec.toFixed(6)}° ${latRef || ''}`;
-                            document.getElementById('resLon').textContent = `${lonDec.toFixed(6)}° ${lonRef || ''}`;
-                            document.getElementById('resLat').style.color = "#ffcc00"; // Желтый, чтобы привлечь внимание
+                            document.getElementById('resLat').textContent = `${lat.toFixed(6)}°`;
+                            document.getElementById('resLon').textContent = `${lon.toFixed(6)}°`;
+                            document.getElementById('resLat').style.color = "#ffcc00"; 
                             document.getElementById('resLon').style.color = "#ffcc00";
+                            showMap(lat, lon); // Показываем карту
                         } else {
                             document.getElementById('resLat').textContent = "Нет данных";
                             document.getElementById('resLon').textContent = "Нет данных";
@@ -205,19 +344,52 @@
                             document.getElementById('resLon').style.color = "var(--text-muted)";
                         }
 
-                        // Показываем контейнер
                         dataContainer.style.display = 'block';
+                        searchLinks.style.display = 'block';
+                        checklist.style.display = 'block';
 
-                        // Если вообще нет EXIF (например, фото из интернета)
                         if (make === "Неизвестно" && date === "Нет данных" && !lat) {
                             errorMsg.textContent = "В этом фото нет метаданных. Скорее всего, оно было скачано из соцсети (Telegram, VK, Instagram удаляют EXIF для защиты).";
                             errorMsg.style.display = 'block';
                         }
+                    }).catch(error => {
+                        document.getElementById('resDevice').textContent = "Нет данных";
+                        document.getElementById('resDate').textContent = "Нет данных";
+                        document.getElementById('resRes').textContent = `${this.naturalWidth}x${this.naturalHeight}`;
+                        document.getElementById('resLat').textContent = "Нет данных";
+                        document.getElementById('resLon').textContent = "Нет данных";
+                        dataContainer.style.display = 'block';
+                        searchLinks.style.display = 'block';
+                        checklist.style.display = 'block';
+                        
+                        errorMsg.textContent = "Файл не содержит скрытых метаданных (EXIF). Скорее всего, это скриншот или фото из соцсети.";
+                        errorMsg.style.display = 'block';
                     });
                 };
             };
             reader.readAsDataURL(file);
+        }
+
+        // Обработка загрузки своего фото
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) processFile(file);
+        });
+
+        // Обработка кнопки "Демо" (берем картинку с GitHub)
+        demoBtn.addEventListener('click', async function() {
+            demoBtn.textContent = "[ Загрузка... ]";
+            try {
+                const response = await fetch('https://raw.githubusercontent.com/ianare/exif-samples/master/jpg/gps/DSCN0010.jpg');
+                const blob = await response.blob();
+                const file = new File([blob], "demo.jpg", { type: "image/jpeg" });
+                processFile(file);
+                demoBtn.textContent = "[ Попробовать на примере ]";
+            } catch (error) {
+                alert("Не удалось загрузить демо-фото. Проверьте интернет.");
+                demoBtn.textContent = "[ Попробовать на примере ]";
+            }
         });
     </script>
 </body>
-          </html>
+</html>
