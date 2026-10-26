@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MetaHunter | EXIF Анализатор</title>
+    
+    <!-- Подключаем библиотеку для чтения EXIF -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+
+    <style>
+        :root {
+            --bg: #0f1115;
+            --card-bg: #1a1d24;
+            --text: #ffffff;
+            --text-muted: #8b92a5;
+            --accent: #00e676;
+            --border: #2a2f3a;
+        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container { width: 100%; max-width: 500px; margin-top: 20px; }
+        
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0 0 5px 0; font-size: 28px; letter-spacing: 1px; }
+        .header p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+        /* Зона загрузки */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--card-bg);
+            margin-bottom: 20px;
+        }
+        .upload-area:hover { border-color: var(--accent); background: rgba(0, 230, 118, 0.05); }
+        .upload-area svg { width: 40px; height: 40px; fill: var(--text-muted); margin-bottom: 10px; }
+        .upload-area p { margin: 0; color: var(--text-muted); font-size: 14px; }
+        input[type="file"] { display: none; }
+
+        /* Превью картинки */
+        .image-preview {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            filter: brightness(0.8);
+            border: 1px solid var(--border);
+        }
+
+        /* Блок с данными */
+        .data-container {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .data-row:last-child { border-bottom: none; }
+        .data-label { color: var(--text-muted); }
+        .data-value { color: var(--accent); font-weight: bold; text-align: right; max-width: 60%; word-break: break-all;}
+
+        .error-msg {
+            display: none;
+            color: #ff3b30;
+            text-align: center;
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .footer { margin-top: auto; font-size: 12px; color: var(--text-muted); text-align: center; padding-top: 20px;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>MetaHunter</h1>
+            <p>Анализ скрытых метаданных фотографий</p>
+        </div>
+
+        <!-- Зона загрузки -->
+        <label for="fileInput" class="upload-area" id="uploadArea">
+            <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            <p>Нажми, чтобы выбрать фото</p>
+        </label>
+        <input type="file" id="fileInput" accept="image/*">
+
+        <!-- Превью -->
+        <img id="imagePreview" class="image-preview" alt="Preview">
+
+        <!-- Сообщение об ошибке -->
+        <div class="error-msg" id="errorMsg"></div>
+
+        <!-- Результаты -->
+        <div class="data-container" id="dataContainer">
+            <div class="data-row">
+                <span class="data-label">Устройство</span>
+                <span class="data-value" id="resDevice">-</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Дата съемки</span>
+                <span class="data-value" id="resDate">-</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Разрешение</span>
+                <span class="data-value" id="resRes">-</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">GPS Широта</span>
+                <span class="data-value" id="resLat">-</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">GPS Долгота</span>
+                <span class="data-value" id="resLon">-</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            Данные не отправляются на сервер.<br>Анализ происходит локально в браузере.
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const dataContainer = document.getElementById('dataContainer');
+        const errorMsg = document.getElementById('errorMsg');
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Сброс предыдущих данных
+            dataContainer.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                imagePreview.src = event.target.result;
+                imagePreview.style.display = 'block';
+
+                // Ждем загрузки картинки в DOM, чтобы прочитать EXIF
+                imagePreview.onload = function() {
+                    EXIF.getData(imagePreview, function() {
+                        // Получаем теги
+                        const make = EXIF.getTag(this, "Make") || "Неизвестно";
+                        const model = EXIF.getTag(this, "Model") || "";
+                        const date = EXIF.getTag(this, "DateTimeOriginal") || "Нет данных";
+                        
+                        // GPS
+                        const lat = EXIF.getTag(this, "GPSLatitude");
+                        const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+                        const lon = EXIF.getTag(this, "GPSLongitude");
+                        const lonRef = EXIF.getTag(this, "GPSLongitudeRef");
+
+                        // Заполняем данные
+                        document.getElementById('resDevice').textContent = model ? `${make} ${model}` : make;
+                        document.getElementById('resDate').textContent = date;
+                        document.getElementById('resRes').textContent = `${this.naturalWidth}x${this.naturalHeight}`;
+
+                        // Обработка GPS
+                        if (lat && lon) {
+                            // Конвертация формата EXIF (градусы, минуты, секунды) в десятичные градусы
+                            const latDec = lat[0] + lat[1]/60 + lat[2]/3600;
+                            const lonDec = lon[0] + lon[1]/60 + lon[2]/3600;
+                            
+                            document.getElementById('resLat').textContent = `${latDec.toFixed(6)}° ${latRef || ''}`;
+                            document.getElementById('resLon').textContent = `${lonDec.toFixed(6)}° ${lonRef || ''}`;
+                            document.getElementById('resLat').style.color = "#ffcc00"; // Желтый, чтобы привлечь внимание
+                            document.getElementById('resLon').style.color = "#ffcc00";
+                        } else {
+                            document.getElementById('resLat').textContent = "Нет данных";
+                            document.getElementById('resLon').textContent = "Нет данных";
+                            document.getElementById('resLat').style.color = "var(--text-muted)";
+                            document.getElementById('resLon').style.color = "var(--text-muted)";
+                        }
+
+                        // Показываем контейнер
+                        dataContainer.style.display = 'block';
+
+                        // Если вообще нет EXIF (например, фото из интернета)
+                        if (make === "Неизвестно" && date === "Нет данных" && !lat) {
+                            errorMsg.textContent = "В этом фото нет метаданных. Скорее всего, оно было скачано из соцсети (Telegram, VK, Instagram удаляют EXIF для защиты).";
+                            errorMsg.style.display = 'block';
+                        }
+                    });
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+          </html>
