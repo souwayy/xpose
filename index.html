@@ -37,24 +37,22 @@
         .header h1 { margin: 0 0 5px 0; font-size: 28px; letter-spacing: 1px; }
         .header p { margin: 0; color: var(--text-muted); font-size: 14px; }
 
-        /* Иконки */
         svg { display: inline-block; vertical-align: middle; }
-        .icon-accent { fill: var(--accent); }
-        .icon-muted { fill: var(--text-muted); }
 
-        /* Кнопки управления */
         .action-btn {
             display: flex; align-items: center; justify-content: center; gap: 8px;
             width: 100%; padding: 14px; margin-bottom: 15px;
-            background: transparent; color: var(--accent); border: 1px dashed var(--accent);
+            background: rgba(0, 230, 118, 0.05); 
+            color: var(--accent); 
+            border: 1px solid var(--accent);
             border-radius: 8px; font-weight: bold; font-size: 14px;
             cursor: pointer; transition: all 0.3s;
         }
-        .action-btn:hover { background: rgba(0, 230, 118, 0.1); }
+        .action-btn:hover { background: rgba(0, 230, 118, 0.15); }
         
         .reset-btn {
             display: none; background: #1a1d24; border: 1px solid #2a2f3a; color: var(--text);
-            border-style: solid; margin-top: 20px;
+            margin-top: 20px;
         }
         .reset-btn:hover { background: #2a2f3a; color: var(--text); }
 
@@ -74,7 +72,6 @@
             border: 1px solid var(--border); background: #000;
         }
 
-        /* Карта */
         #map {
             height: 250px; width: 100%; border-radius: 12px; margin-bottom: 20px;
             border: 1px solid var(--border); display: none; z-index: 1; background: #000;
@@ -84,7 +81,30 @@
             filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%);
         }
 
-        /* Блок данных */
+        /* Кастомная пульсирующая капля */
+        .pulse-pin {
+            width: 24px; height: 24px;
+            background: var(--red);
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            position: absolute; bottom: 0; left: 3px;
+            border: 2px solid #fff;
+            animation: pulse-pin 1.5s infinite alternate;
+        }
+        .pulse-pin::after {
+            content: '';
+            width: 8px; height: 8px;
+            background: #fff; border-radius: 50%;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            margin-top: -5px; margin-left: -5px;
+        }
+        @keyframes pulse-pin {
+            0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+
         .data-container {
             display: none; background: var(--card-bg); border: 1px solid var(--border);
             border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: fadeIn 0.5s ease;
@@ -108,7 +128,6 @@
         }
         .gmaps-btn:hover { background: rgba(34, 211, 238, 0.1); }
 
-        /* Инструкции */
         .instructions {
             display: none; background: var(--card-bg); border: 1px solid var(--border);
             border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: fadeIn 0.5s ease;
@@ -118,6 +137,7 @@
         .instr-header h3 { margin: 0; font-size: 16px; color: var(--text); }
         
         .instructions p { font-size: 13.5px; color: var(--text-muted); margin: 0 0 15px 0; line-height: 1.5; }
+        .search-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: block; font-style: italic;}
         
         .osint-hints { list-style: none; padding: 0; margin: 15px 0 0 0; }
         .osint-hints li { 
@@ -128,8 +148,7 @@
         .osint-hints li:last-child { border-bottom: none; }
         .osint-hints svg { width: 14px; height: 14px; flex-shrink: 0; fill: var(--accent); margin-top: 2px;}
 
-        /* Ссылки на поиск */
-        .search-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;}
+        .search-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;}
         .search-btn {
             display: flex; align-items: center; justify-content: center; gap: 8px;
             padding: 12px; background: var(--bg); color: var(--text);
@@ -210,6 +229,7 @@
             </div>
             <p id="instrText">Проверка завершена.</p>
             
+            <span class="search-desc">Сохраните фото в галерею и загрузите на один из сервисов для поиска первоисточника:</span>
             <div class="search-links">
                 <a href="https://yandex.ru/images/" class="search-btn" target="_blank">
                     Яндекс <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
@@ -225,6 +245,7 @@
                 </a>
             </div>
 
+            <!-- Подсказки -->
             <ul class="osint-hints" id="osintHints" style="display:none;">
                 <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Язык вывесок и надписей на фото</li>
                 <li><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Формат и цвет номеров машин</li>
@@ -255,8 +276,8 @@
         const resetBtn = document.getElementById('resetBtn');
         const mapContainer = document.getElementById('map');
         const gmapsContainer = document.getElementById('gmapsContainer');
-        const osintHints = document.getElementById('osintHints');
         const instrIcon = document.getElementById('instrIcon');
+        const osintHints = document.getElementById('osintHints');
 
         let map = null;
         let marker = null;
@@ -278,16 +299,14 @@
 
                 if (marker) map.removeLayer(marker);
                 
-                marker = L.circleMarker([lat, lon], {
-                    radius: 10,
-                    fillColor: "#ff3b30",
-                    color: "#fff",
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8,
-                    className: 'pulse-marker-map'
-                }).addTo(map);
+                const pinIcon = L.divIcon({
+                    className: 'custom-pin-wrapper',
+                    html: '<div class="pulse-pin"></div>',
+                    iconSize: [30, 42],
+                    iconAnchor: [15, 42]
+                });
 
+                marker = L.marker([lat, lon], {icon: pinIcon}).addTo(map);
                 map.invalidateSize();
             }, 150);
         }
@@ -314,7 +333,7 @@
             errorMsg.style.display = 'none';
             mapContainer.style.display = 'none';
             gmapsContainer.style.display = 'none';
-            errorMsg.style.display = 'none';
+            osintHints.style.display = 'none'; // Всегда скрываем перед новым анализом
             
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -352,11 +371,12 @@
                             document.getElementById('gmapsLink').href = `https://www.google.com/maps?q=${currentLat},${currentLon}`;
                             gmapsContainer.style.display = 'block';
                             
-                            // Меняем иконку на "Локация" (Map Pin)
                             instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
                             
                             document.getElementById('instrTitle').textContent = "Место найдено";
                             document.getElementById('instrText').textContent = "Координаты извлечены из метаданных. Ты можешь скопировать их или открыть в Google Maps.";
+                            
+                            // Скрываем подсказки, так как место уже найдено
                             osintHints.style.display = 'none';
                             
                         } else {
@@ -368,11 +388,12 @@
                                 errorMsg.style.display = 'block';
                             }
                             
-                            // Меняем иконку на "Поиск" (Lens)
                             instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
                             
                             document.getElementById('instrTitle').textContent = "Как найти место без метаданных?";
                             document.getElementById('instrText').textContent = "Загрузи фото в поисковики ниже, чтобы найти оригинал, или обрати внимание на детали:";
+                            
+                            // Показываем подсказки, так как GPS не найден
                             osintHints.style.display = 'block';
                         }
 
@@ -398,6 +419,8 @@
                         
                         document.getElementById('instrTitle').textContent = "Как найти место без метаданных?";
                         document.getElementById('instrText').textContent = "Загрузи фото в поисковики ниже, чтобы найти оригинал, или обрати внимание на детали:";
+                        
+                        // Показываем подсказки в случае ошибки
                         osintHints.style.display = 'block';
                     });
                 };
@@ -438,19 +461,8 @@
             uploadArea.style.display = 'block';
             demoBtn.style.display = 'flex';
             
-            // Возвращаем иконку лупы по умолчанию
             instrIcon.outerHTML = '<svg id="instrIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
         });
     </script>
-    
-    <style>
-        .pulse-marker-map {
-            animation: pulse-map 1.5s infinite alternate;
-        }
-        @keyframes pulse-map {
-            0% { stroke-width: 2px; r: 10; }
-            100% { stroke-width: 4px; r: 12; }
-        }
-    </style>
 </body>
-</html>
+    </html>
