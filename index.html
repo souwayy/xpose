@@ -118,7 +118,6 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- ЗЕМЛЯ НА КРУГАХ (СТАБИЛЬНАЯ) ---
     function getTerrainY(x) {
         let y = groundY;
         y -= noise(x * 0.001) * 100;  
@@ -127,10 +126,11 @@
         return y;
     }
 
+    // --- ЗЕМЛЯ (ТОЧНО КАК В РАБОЧЕЙ ВЕРСИИ) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 10; 
-    const groundRadius = 20; 
+    const groundRadius = 30; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -153,40 +153,32 @@
         }
     }
 
-    // --- МОТОЦИКЛ (ТВОИ НАСТРОЙКИ) ---
+    // --- МОТОЦИКЛ (ТОЧНО КАК В РАБОЧЕЙ ВЕРСИИ) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
     
-    const startY = getTerrainY(startX) - wheelRadius - 15; 
+    let startHillY = getTerrainY(startX);
+    const startY = startHillY - wheelRadius - 5; // Идеальный спавн
     
-    const chassis = Bodies.rectangle(startX, startY, 60, 15, { 
-        density: 0.2, 
-        collisionFilter: { group: group } 
+    const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
+        density: 0.05, friction: 0.5, frictionStatic: 0.5, restitution: 0, collisionFilter: { group: group } 
+    });
+    const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
+        density: 0.05, friction: 0.5, frictionStatic: 0.5, restitution: 0, collisionFilter: { group: group } 
+    });
+    
+    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
+        density: 0.2, restitution: 0, collisionFilter: { group: group } 
     }); 
 
-    const wheelRear = Bodies.circle(startX - wheelBase, startY + 10, wheelRadius, { 
-        density: 0.05, friction: 0.5, collisionFilter: { group: group } 
-    });
-    const wheelFront = Bodies.circle(startX + wheelBase, startY + 10, wheelRadius, { 
-        density: 0.05, friction: 0.5, collisionFilter: { group: group } 
-    });
-    
     const suspensionRear = Constraint.create({ 
-        bodyA: chassis, 
-        pointA: { x: -wheelBase, y: 10 },
-        bodyB: wheelRear, 
-        stiffness: 0.2, 
-        damping: 0.4,
-        length: 0 
+        bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
     const suspensionFront = Constraint.create({ 
-        bodyA: chassis, 
-        pointA: { x: wheelBase, y: 10 },
-        bodyB: wheelFront, 
-        stiffness: 0.2, 
-        damping: 0.4,
-        length: 0 
+        bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -223,9 +215,8 @@
 
     // --- СИСТЕМА ЧАСТИЦ (ПЫЛЬ) ---
     const particles = [];
-    
     function createDust(x, y) {
-        if (particles.length > 50) return; // Ограничитель, чтобы не лагало
+        if (particles.length > 50) return; 
         particles.push({
             x: x + (Math.random() - 0.5) * 10,
             y: y + 5,
@@ -239,7 +230,7 @@
     function drawParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
-            ctx.fillStyle = `rgba(80, 80, 80, ${p.alpha})`; // Темно-серая пыль
+            ctx.fillStyle = `rgba(80, 80, 80, ${p.alpha})`; 
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -252,8 +243,7 @@
         }
     }
 
-    // --- ЗВУК (Web Audio API) ---
-    // Создаем синтезатор прямо в браузере, чтобы не искать файлы
+    // --- ЗВУК ---
     let audioCtx, oscillator, gainNode;
     let isAudioInitialized = false;
 
@@ -265,16 +255,15 @@
             oscillator = audioCtx.createOscillator();
             gainNode = audioCtx.createGain();
             
-            oscillator.type = 'sawtooth'; // Звук двигателя
+            oscillator.type = 'sawtooth'; 
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             
             oscillator.start();
-            gainNode.gain.value = 0; // Изначально тихо
+            gainNode.gain.value = 0; 
             isAudioInitialized = true;
         } catch(e) { console.log("Аудио не поддерживается"); }
     }
-
     document.body.addEventListener('touchstart', initAudio, { once: true });
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
@@ -336,11 +325,11 @@
     function respawn() {
         let spawnX = cameraX + (canvas.width * 0.3) / zoom;
         let respawnHillY = getTerrainY(spawnX);
-        let respawnY = respawnHillY - wheelRadius - 15;
+        let respawnY = respawnHillY - wheelRadius - 5;
         
-        Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY + 10 });
-        Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY + 10 });
-        Body.setPosition(chassis, { x: spawnX, y: respawnY });
+        Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
+        Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
+        Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
         
         Body.setVelocity(chassis, { x: 0, y: 0 }); 
         Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
@@ -354,23 +343,20 @@
     }
 
     function update() {
-        // ЗВУК
         if (isAudioInitialized) {
             if (window.isGas) {
-                gainNode.gain.value = 0.03; // Громкость
-                // Частота зависит от скорости колес (звук разгона)
+                gainNode.gain.value = 0.03; 
                 oscillator.frequency.value = 60 + Math.abs(wheelRear.angularVelocity) * 40;
             } else {
-                gainNode.gain.value = 0; // Тишина
+                gainNode.gain.value = 0; 
             }
         }
 
-        // ГАЗ
+        // ТВОЯ СКОРОСТЬ (1.2)
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.2); 
             Body.setAngularVelocity(wheelFront, 1.2); 
             
-            // ПЫЛЬ
             if (Math.abs(chassis.velocity.x) > 1) {
                 createDust(wheelRear.position.x, wheelRear.position.y + wheelRadius);
             }
@@ -382,7 +368,7 @@
         
         let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        // ВИЛЛИ (Твои настройки 0.008 / 0.4)
+        // ТВОИ НАКЛОНЫ (0.008)
         let tiltAccel = 0.008; 
         let maxTiltSpeed = 0.4; 
 
@@ -403,7 +389,6 @@
             }
         }
 
-        // Смерть
         let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
         let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
         let groundUnderHead = getTerrainY(headX);
@@ -412,7 +397,6 @@
             respawn();
         }
 
-        // Камера
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
@@ -432,7 +416,6 @@
             respawn();
         }
 
-        // Отрисовка
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -449,13 +432,9 @@
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
 
-        // Земля
         drawTerrain();
-
-        // Пыль (рисуем ПОД мотоциклом)
         drawParticles();
 
-        // Мотоцикл
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
