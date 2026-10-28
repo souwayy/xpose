@@ -52,6 +52,8 @@
         #btnBrake       { bottom: 30px;  right: 60px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <!-- ПОДКЛЮЧАЕМ ПОЛИГОНЫ -->
+    <script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
 </head>
 <body>
 
@@ -96,13 +98,14 @@
           Composite = Matter.Composite,
           Constraint = Matter.Constraint,
           Body = Matter.Body,
+          Vertices = Matter.Vertices,
           Query = Matter.Query;
 
     const engine = Engine.create();
     const world = engine.world;
     
-    engine.positionIterations = 15; 
-    engine.velocityIterations = 12;
+    engine.positionIterations = 20; 
+    engine.velocityIterations = 20;
     engine.gravity.y = 1; 
 
     const startX = 50000;
@@ -119,98 +122,90 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- ИСПРАВЛЕНИЕ 1: ОДИН ИСТОЧНИК ПРАВДЫ ДЛЯ ЗЕМЛИ ---
-    const SEG = 20; // Шаг 20 пикселей
-    const terrainBlocks = [];
-    const terrainBodies = []; 
-    let lastGeneratedX = startX - 2000;
-
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 150;  
-        y -= noise(x * 0.006) * 50;   
-        y -= noise(x * 0.02) * 10;    
+        y -= noise(x * 0.001) * 120;  
+        y -= noise(x * 0.005) * 40;   
+        y -= noise(x * 0.015) * 10;    
         return y;
     }
 
+    // --- ИДЕАЛЬНАЯ ПОЛИГОНАЛЬНАЯ ЗЕМЛЯ ---
+    const terrainChunks = [];
+    const chunkWidth = 2000; 
+    let lastGeneratedX = startX - chunkWidth;
+
     function generateTerrain() {
-        while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
-            let x1 = lastGeneratedX;
-            let x2 = x1 + SEG;
-            let y1 = getTerrainY(x1);
-            let y2 = getTerrainY(x2);
+        while (lastGeneratedX < cameraX + (canvas.width / zoom) + chunkWidth) {
+            let vertices = [];
+            // Верхняя линия (в точности повторяет getTerrainY)
+            for (let x = 0; x <= chunkWidth; x += 10) {
+                vertices.push({ x: x, y: getTerrainY(lastGeneratedX + x) - groundY });
+            }
+            // Закрываем полигон снизу (глубина 2000 пикселей)
+            vertices.push({ x: chunkWidth, y: 2000 });
+            vertices.push({ x: 0, y: 2000 });
 
-            let angle = Math.atan2(y2 - y1, x2 - x1);
-            let dist = Math.hypot(x2 - x1, y2 - y1) + 2; 
-            
-            let midX = (x1 + x2) / 2;
-            let midY = (y1 + y2) / 2;
-            // Опускаем блок вниз на 100 пикселей, чтобы верхняя грань была ровно на линии
-            let cx = midX + Math.sin(angle) * 100;
-            let cy = midY + Math.cos(angle) * 100;
-
-            let block = Bodies.rectangle(cx, cy, dist, 200, { 
-                isStatic: true,
-                angle: angle,
-                friction: 1, 
+            let block = Bodies.fromVertices(lastGeneratedX, groundY, [vertices], { 
+                isStatic: true, 
+                friction: 0.8, // Хорошее сцепление
                 collisionFilter: { category: 0x0002 } 
-            });
-            
-            terrainBlocks.push({ body: block, x: x1, y: y1 });
-            terrainBodies.push(block);
-            Composite.add(world, block);
-            
-            lastGeneratedX += SEG;
+            }, true);
+
+            if (block) {
+                terrainChunks.push({ body: block, x: lastGeneratedX });
+                Composite.add(world, block);
+            }
+            lastGeneratedX += chunkWidth;
         }
     }
 
     function cleanupTerrain() {
-        for (let i = terrainBlocks.length - 1; i >= 0; i--) {
-            if (terrainBlocks[i].x < cameraX - 2000) {
-                Composite.remove(world, terrainBlocks[i].body);
-                let index = terrainBodies.indexOf(terrainBlocks[i].body);
-                if (index > -1) terrainBodies.splice(index, 1);
-                terrainBlocks.splice(i, 1);
+        for (let i = terrainChunks.length - 1; i >= 0; i--) {
+            if (terrainChunks[i].x < cameraX - chunkWidth) {
+                Composite.remove(world, terrainChunks[i].body);
+                terrainChunks.splice(i, 1);
             }
         }
     }
 
-    // --- ИСПРАВЛЕНИЕ 2: МАСШТАБ И ПОДВЕСКА ---
+    // --- МОТОЦИКЛ (ТВОИ НАСТРОЙКИ) ---
     const group = Body.nextGroup(true); 
-    const wheelRadius = 18; 
-    const wheelBase = 40; 
+    const wheelRadius = 12; 
+    const wheelBase = 28; 
     
-    const suspLength = 15;
-    const startY = getTerrainY(startX) - wheelRadius - suspLength; 
+    // ИСПРАВЛЕНИЕ СПАВНА: Ставим мотоцикл ВЫШЕ земли
+    const spawnGroundY = getTerrainY(startX);
+    const startY = spawnGroundY - wheelRadius - 20; 
     
-    const chassis = Bodies.rectangle(startX, startY, 80, 20, { 
-        density: 0.4, // Сделали раму тяжелее для стабильности
+    const chassis = Bodies.rectangle(startX, startY, 60, 15, { 
+        density: 0.3, // Рама тяжелая
         collisionFilter: { group: group } 
     }); 
 
-    const wheelRear = Bodies.circle(startX - wheelBase, startY + suspLength, wheelRadius, { 
+    const wheelRear = Bodies.circle(startX - wheelBase, startY + 15, wheelRadius, { 
         density: 0.1, friction: 0.8, collisionFilter: { group: group } 
     });
-    const wheelFront = Bodies.circle(startX + wheelBase, startY + suspLength, wheelRadius, { 
+    const wheelFront = Bodies.circle(startX + wheelBase, startY + 15, wheelRadius, { 
         density: 0.1, friction: 0.8, collisionFilter: { group: group } 
     });
     
-    // Жесткие пружины, но с реальным ходом (length)
+    // Подвеска со смещением (как в рабочем шаблоне)
     const suspensionRear = Constraint.create({ 
         bodyA: chassis, 
-        pointA: { x: -wheelBase, y: suspLength }, 
+        pointA: { x: -wheelBase, y: 15 },
         bodyB: wheelRear, 
-        stiffness: 0.3, 
-        damping: 0.5,
-        length: suspLength 
+        stiffness: 0.2, 
+        damping: 0.4,
+        length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: chassis, 
-        pointA: { x: wheelBase, y: suspLength },
+        pointA: { x: wheelBase, y: 15 },
         bodyB: wheelFront, 
-        stiffness: 0.3, 
-        damping: 0.5,
-        length: suspLength 
+        stiffness: 0.2, 
+        damping: 0.4,
+        length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -238,7 +233,7 @@
 
     let cameraX = startX - (canvas.width * 0.3);
     let cameraY = 0; 
-    const zoom = 1.0; 
+    const zoom = 1.2; 
 
     let maxDistance = 0;
     const distanceText = document.getElementById('distanceText');
@@ -269,15 +264,15 @@
         ctx.fillStyle = '#000'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 4, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 3, 0, Math.PI * 2); ctx.stroke();
 
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
         for (let i = 0; i < 4; i++) {
             let angle = (i / 4) * Math.PI * 2;
             ctx.beginPath(); 
             ctx.moveTo(0, 0); 
-            ctx.lineTo(Math.cos(angle) * (wheelRadius - 4), Math.sin(angle) * (wheelRadius - 4)); 
+            ctx.lineTo(Math.cos(angle) * (wheelRadius - 3), Math.sin(angle) * (wheelRadius - 3)); 
             ctx.stroke();
         }
         ctx.restore();
@@ -286,10 +281,10 @@
     function respawn() {
         let spawnX = cameraX + (canvas.width * 0.3) / zoom;
         let respawnHillY = getTerrainY(spawnX);
-        let respawnY = respawnHillY - wheelRadius - suspLength;
+        let respawnY = respawnHillY - wheelRadius - 20;
         
-        Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY + suspLength });
-        Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY + suspLength });
+        Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY + 15 });
+        Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY + 15 });
         Body.setPosition(chassis, { x: spawnX, y: respawnY });
         
         Body.setVelocity(chassis, { x: 0, y: 0 }); 
@@ -304,11 +299,10 @@
     }
 
     function update() {
-        // --- ИСПРАВЛЕНИЕ 3: ПЛАВНЫЙ ГАЗ ---
         if (window.isGas) { 
-            if (wheelRear.angularVelocity < 1.0) {
-                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity + 0.03); 
-                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity + 0.03); 
+            if (wheelRear.angularVelocity < 1.5) {
+                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity + 0.1); 
+                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity + 0.1); 
             }
         }
         
@@ -317,39 +311,28 @@
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.95); 
         }
         
-        // Проверка на воздух через реальное касание
-        let collRear = Query.collides(wheelRear, terrainBodies);
-        let collFront = Query.collides(wheelFront, terrainBodies);
-        let isAirborne = (collRear.length === 0 && collFront.length === 0);
-
-        // Вилли
-        if (isAirborne) {
-            if (window.isLeanBack) Body.setAngularVelocity(chassis, chassis.angularVelocity - 0.01);
-            if (window.isLeanForward) Body.setAngularVelocity(chassis, chassis.angularVelocity + 0.01);
-        } else {
-            if (window.isLeanBack) {
-                if (chassis.angle > -0.8) Body.setAngularVelocity(chassis, chassis.angularVelocity - 0.02);
-            } else if (window.isLeanForward) {
-                if (chassis.angle < 0.8) Body.setAngularVelocity(chassis, chassis.angularVelocity + 0.02);
-            } else {
-                Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
-            }
+        // ВИЛЛИ (Плавное)
+        if (window.isLeanBack) {
+            Body.setAngularVelocity(chassis, -0.1);
+        } 
+        else if (window.isLeanForward) {
+            Body.setAngularVelocity(chassis, 0.1);
         }
 
-        // Смерть
-        let headX = chassis.position.x + Math.sin(chassis.angle) * 45; 
-        let headY = chassis.position.y - Math.cos(chassis.angle) * 45;
+        // СМЕРТЬ (Голова)
+        let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
+        let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
         let groundUnderHead = getTerrainY(headX);
 
-        if (headY >= groundUnderHead && !isAirborne) {
+        if (headY >= groundUnderHead && Math.abs(chassis.velocity.y) < 2.0) {
             respawn();
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
-        cameraX += (targetCameraX - cameraX) * 0.15; 
+        cameraX += (targetCameraX - cameraX) * 0.1; 
         
         let targetCameraY = (canvas.height * 0.5) - chassis.position.y;
-        cameraY += (targetCameraY - cameraY) * 0.15;
+        cameraY += (targetCameraY - cameraY) * 0.1;
         
         generateTerrain();
         cleanupTerrain();
@@ -380,34 +363,15 @@
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
 
-        // --- ОТРИСОВКА ЗЕМЛИ (ИДЕАЛЬНО СИНХРОНИЗИРОВАНА С ФИЗИКОЙ) ---
+        // Отрисовка полигонов земли (точно совпадает с физикой)
         ctx.fillStyle = '#000';
-        ctx.beginPath();
-        let startDrawX = Math.floor(cameraX) - 100;
-        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
-        
-        // Ищем первый блок в зоне видимости
-        let firstBlock = null;
-        for (let i = 0; i < terrainBlocks.length; i++) {
-            if (terrainBlocks[i].x >= startDrawX) {
-                firstBlock = terrainBlocks[i];
-                break;
+        for (let i = 0; i < terrainChunks.length; i++) {
+            let body = terrainChunks[i].body;
+            ctx.beginPath();
+            for (let j = 0; j < body.vertices.length; j++) {
+                if (j === 0) ctx.moveTo(body.vertices[j].x, body.vertices[j].y);
+                else ctx.lineTo(body.vertices[j].x, body.vertices[j].y);
             }
-        }
-        
-        if (firstBlock) {
-            ctx.moveTo(firstBlock.x, firstBlock.y);
-            for (let i = 0; i < terrainBlocks.length; i++) {
-                let b = terrainBlocks[i];
-                if (b.x >= startDrawX && b.x <= endDrawX) {
-                    ctx.lineTo(b.x, b.y);
-                }
-            }
-            // Дорисовываем последнюю точку и закрываем полигон
-            let lastB = terrainBlocks[terrainBlocks.length - 1];
-            ctx.lineTo(lastB.x, lastB.y);
-            ctx.lineTo(lastB.x, canvas.height + 2000);
-            ctx.lineTo(firstBlock.x, canvas.height + 2000);
             ctx.closePath();
             ctx.fill();
         }
@@ -418,7 +382,7 @@
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            ctx.drawImage(bikeImage, -60, -60, 120, 72); 
+            ctx.drawImage(bikeImage, -50, -45, 100, 60); 
         }
         ctx.restore();
 
